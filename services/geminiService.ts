@@ -1,15 +1,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  console.warn("Gemini API key not found. Please set the API_KEY environment variable.");
-}
-
-export const ai = new GoogleGenAI({ apiKey: API_KEY! });
+// Per coding guidelines, the API key is assumed to be configured in the environment.
+// Initialize the GoogleGenAI client directly.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
 export const generateDescription = async (prompt: string): Promise<string> => {
-  if (!API_KEY) return "API Key not configured. Please check your environment variables.";
   try {
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -23,7 +18,6 @@ export const generateDescription = async (prompt: string): Promise<string> => {
 };
 
 export const getMarketInsights = async (query: string): Promise<string> => {
-    if (!API_KEY) return "API Key not configured. Please check your environment variables.";
     try {
         const prompt = `As an agricultural market analyst, provide insights on the following topic: "${query}". Focus on trends, pricing, and potential opportunities for farmers in West Africa.`;
         const response = await ai.models.generateContent({
@@ -41,10 +35,6 @@ export const getMarketInsights = async (query: string): Promise<string> => {
 };
 
 export const editImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string | null> => {
-  if (!API_KEY) {
-    console.error("API Key not configured.");
-    return null;
-  }
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',

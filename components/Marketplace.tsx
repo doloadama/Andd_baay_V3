@@ -1,156 +1,88 @@
-import React, { useState, useMemo } from 'react';
-import { Product, User, Project, ProjectStatus, Role } from '../types';
-import { Search, MapPin, Tag, PlusCircle, UserCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Product, AvailabilityStatus } from '../types';
+import { MOCK_PRODUCTS } from '../constants';
+import { formatCurrency } from '../utils/formatters';
 import ProductListingModal from './ProductListingModal';
+import { t, Language } from '../utils/i18n';
 
 interface MarketplaceProps {
-    allProducts: Product[];
-    userProjects: Project[];
-    currentUser: User | null;
-    onAddProduct: (product: Omit<Product, 'id' | 'imageUrl'>, imageFile: File | null) => void;
-    onUpdateProduct: (product: Product, imageFile: File | null) => void;
-    allUsers: User[];
+    user: User;
+    t: (key: any, lang: Language) => string;
+    lang: Language;
 }
 
-const Marketplace: React.FC<MarketplaceProps> = ({ allProducts, userProjects, currentUser, onAddProduct, onUpdateProduct, allUsers }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isListingModalOpen, setIsListingModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
-    
-    const isFarmer = currentUser?.role === Role.FARMER || currentUser?.role === Role.BOTH;
-    
-    const eligibleProjects = useMemo(() => userProjects.filter(p => 
-      (p.status === ProjectStatus.HARVESTING || p.status === ProjectStatus.COMPLETED) &&
-      !allProducts.some(prod => prod.projectId === p.id)
-    ), [userProjects, allProducts]);
+const getStatusColor = (status: AvailabilityStatus) => {
+    switch (status) {
+        case AvailabilityStatus.AVAILABLE: return 'bg-green-100 text-green-800';
+        case AvailabilityStatus.OUT_OF_STOCK: return 'bg-red-100 text-red-800';
+        case AvailabilityStatus.PRE_ORDER: return 'bg-blue-100 text-blue-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+};
 
-    const handleEditListing = (product: Product) => {
-        setEditingProduct(product);
-        setIsListingModalOpen(true);
-    };
+const Marketplace: React.FC<MarketplaceProps> = ({ user, t, lang }) => {
+    const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const handleCloseModal = () => {
-        setIsListingModalOpen(false);
-        setEditingProduct(undefined); // Clear editing state on close
-    };
-
-    const filteredProducts = allProducts.filter(product =>
-        product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.cropType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.location.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const handleAddProduct = (newProduct: Omit<Product, 'id' | 'farmerId'>) => {
+        const productToAdd: Product = {
+            id: Math.max(...products.map(p => p.id)) + 1,
+            farmerId: user.id,
+            ...newProduct
+        };
+        setProducts(prev => [productToAdd, ...prev]);
+    }
     
-    const getSeller = (farmerId: number) => allUsers.find(u => u.id === farmerId);
+    const getTranslatedStatus = (status: AvailabilityStatus) => {
+        const key = status.toLowerCase().replace(' ', '') as any;
+        return t(key, lang);
+    }
 
     return (
-        <div className="space-y-8">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-stone-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="relative w-full md:flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search by product, crop, or location..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 border border-stone-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                    />
-                </div>
-                {isFarmer && (
-                     <button 
-                      onClick={() => setIsListingModalOpen(true)}
-                      disabled={eligibleProjects.length === 0}
-                      className="w-full md:w-auto flex items-center justify-center space-x-2 px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-all duration-300 ease-in-out shadow-sm hover:shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none group"
-                      title={eligibleProjects.length === 0 ? "You have no projects ready for listing." : "Add a new product to the marketplace"}
-                    >
-                        <PlusCircle size={20} />
-                        <span>{eligibleProjects.length > 0 ? 'Add Your Product' : 'No Projects Ready'}</span>
-                    </button>
-                )}
+        <div>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-semibold text-gray-800">{t('navMarketplace', lang)}</h2>
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75"
+                >
+                    {t('listNewProduct', lang)}
+                </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProducts.map(product => (
-                    <ProductCard 
-                        key={product.id} 
-                        product={product}
-                        isOwner={product.farmerId === currentUser?.id}
-                        onEdit={handleEditListing}
-                        seller={getSeller(product.farmerId)}
-                    />
+                {products.map(product => (
+                    <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">
+                        <img className="w-full h-48 object-cover" src={product.imageUrl} alt={product.productName} />
+                        <div className="p-4">
+                            <h3 className="text-lg font-bold text-gray-800">{product.productName}</h3>
+                            <p className="text-sm text-gray-500 mb-2">{product.location}</p>
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="text-xl font-semibold text-green-600">{formatCurrency(product.price)} / {product.unit}</p>
+                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(product.availabilityStatus)}`}>
+                                    {getTranslatedStatus(product.availabilityStatus)}
+                                </span>
+                            </div>
+                            <p className="text-sm text-gray-600">Available: {product.quantity} {product.unit}</p>
+                            <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-150">
+                                {t('contactSeller', lang)}
+                            </button>
+                        </div>
+                    </div>
                 ))}
             </div>
-            
-            {(isFarmer && isListingModalOpen) && <ProductListingModal
-                isOpen={isListingModalOpen}
-                onClose={handleCloseModal}
-                onAddProduct={onAddProduct}
-                onUpdateProduct={onUpdateProduct}
-                project={editingProduct ? userProjects.find(p => p.id === editingProduct.projectId) || null : null}
-                product={editingProduct}
-                projects={userProjects}
-                allProducts={allProducts}
-                currentUser={currentUser!}
-            />}
+            {isModalOpen && (
+                <ProductListingModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    onSubmit={handleAddProduct}
+                    user={user}
+                    t={t}
+                    lang={lang}
+                />
+            )}
         </div>
     );
 };
-
-
-interface ProductCardProps {
-    product: Product;
-    isOwner: boolean;
-    onEdit: (product: Product) => void;
-    seller?: User;
-}
-
-const ProductCard: React.FC<ProductCardProps> = ({ product, isOwner, onEdit, seller }) => {
-    return (
-        <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden group transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1">
-            <div className="relative">
-                <img src={product.imageUrl} alt={product.productName} className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                <h3 className="absolute bottom-3 left-4 text-lg font-bold text-white">{product.productName}</h3>
-                {isOwner && <div className="absolute top-2 right-2 text-xs font-semibold bg-emerald-500 text-white px-2 py-0.5 rounded-full">Your Listing</div>}
-            </div>
-            <div className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-2xl font-bold text-emerald-600">${product.price.toFixed(2)}</p>
-                        <p className="text-sm text-gray-500">per {product.unit}</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="font-semibold text-gray-800">{product.quantity.toLocaleString()} {product.unit}</p>
-                        <p className="text-sm text-gray-500">Available</p>
-                    </div>
-                </div>
-                 <div className="text-xs space-y-1">
-                    <div className="flex items-center text-gray-600"><Tag size={12} className="mr-1.5"/> Crop: <span className="font-medium ml-1">{product.cropType}</span></div>
-                    <div className="flex items-center text-gray-600"><MapPin size={12} className="mr-1.5"/> From: <span className="font-medium ml-1">{product.location}</span></div>
-                </div>
-                
-                <div className="pt-3 border-t border-stone-200">
-                    {isOwner ? (
-                        <button 
-                            onClick={() => onEdit(product)}
-                            className="w-full px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
-                        >
-                            Edit Your Listing
-                        </button>
-                    ) : (
-                        <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-full bg-stone-200 text-emerald-700 flex items-center justify-center font-bold">
-                                {seller?.name.charAt(0) || <UserCircle size={18} />}
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold text-gray-800">{seller?.name || 'Unknown Seller'}</p>
-                                <p className="text-xs text-gray-500 hover:text-emerald-600 cursor-pointer">Contact Seller</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 export default Marketplace;

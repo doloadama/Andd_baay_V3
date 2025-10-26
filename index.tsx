@@ -1,7 +1,8 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+// Fix: Explicitly import from './App.tsx' to resolve the module not found error.
+import App from './App.tsx';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
