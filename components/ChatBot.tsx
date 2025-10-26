@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateDescription } from '../services/geminiService';
-import { t, Language } from '../utils/i1n';
+// Fix: Corrected typo in import path from 'i1n' to 'i18n'.
+import { t, Language } from '../utils/i18n';
 
 interface ChatBotProps {
     t: (key: any, lang: Language) => string;
@@ -59,22 +60,22 @@ const ChatBot: React.FC<ChatBotProps> = ({ t, lang }) => {
     }
 
     return (
-        <div className="fixed bottom-6 right-6 w-80 h-96 bg-white rounded-xl shadow-2xl flex flex-col">
+        <div className="fixed bottom-6 right-6 w-80 h-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl flex flex-col">
             <header className="bg-blue-600 text-white p-3 rounded-t-xl flex justify-between items-center">
                 <h3 className="font-semibold">{t('chatBotHeader', lang)}</h3>
                 <button onClick={() => setIsOpen(false)} className="font-bold text-xl">&times;</button>
             </header>
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                 {messages.map((msg, index) => (
                     <div key={index} className={`mb-3 ${msg.author === 'user' ? 'text-right' : 'text-left'}`}>
-                        <span className={`inline-block p-2 rounded-lg ${msg.author === 'user' ? 'bg-blue-100 text-blue-900' : 'bg-gray-200 text-gray-800'}`}>
+                        <span className={`inline-block p-2 rounded-lg ${msg.author === 'user' ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/50 dark:text-blue-200' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
                             {msg.text}
                         </span>
                     </div>
                 ))}
-                 {loading && <div className="text-left"><span className="inline-block p-2 rounded-lg bg-gray-200 text-gray-800">...</span></div>}
+                 {loading && <div className="text-left"><span className="inline-block p-2 rounded-lg bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">...</span></div>}
             </div>
-            <div className="p-3 border-t">
+            <div className="p-3 border-t dark:border-gray-700">
                 <div className="flex space-x-2">
                     <input
                         type="text"
@@ -82,7 +83,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ t, lang }) => {
                         onChange={(e) => setInput(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                         placeholder={t('chatBotPlaceholder', lang)}
-                        className="flex-1 p-2 border rounded-md"
+                        className="flex-1 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                     <button onClick={handleSend} className="bg-blue-600 text-white px-4 rounded-md hover:bg-blue-700">{t('chatBotSend', lang)}</button>
                 </div>

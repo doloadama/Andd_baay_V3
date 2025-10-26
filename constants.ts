@@ -23,6 +23,20 @@ export const MALI_REGIONS: string[] = [
     'Bamako',
 ];
 
+export const MALI_REGION_IMAGES: { [key: string]: string } = {
+    'Kayes': 'https://source.unsplash.com/1600x900/?kayes,mali,river',
+    'Koulikoro': 'https://source.unsplash.com/1600x900/?koulikoro,mali,escarpment',
+    'Sikasso': 'https://source.unsplash.com/1600x900/?sikasso,mali,agriculture',
+    'Ségou': 'https://source.unsplash.com/1600x900/?segou,mali,architecture',
+    'Mopti': 'https://source.unsplash.com/1600x900/?mopti,mali,mosque',
+    'Tombouctou': 'https://source.unsplash.com/1600x900/?timbuktu,mali,desert',
+    'Gao': 'https://source.unsplash.com/1600x900/?gao,mali,dunes',
+    'Kidal': 'https://source.unsplash.com/1600x900/?kidal,mali,mountains',
+    'Taoudénit': 'https://source.unsplash.com/1600x900/?taoudenit,mali,salt',
+    'Ménaka': 'https://source.unsplash.com/1600x900/?menaka,mali,sahel',
+    'Bamako': 'https://source.unsplash.com/1600x900/?bamako,mali,cityscape',
+};
+
 export const MOCK_SITES: Site[] = [
   { id: 1, farmerId: 1, name: 'Kayes Sun Farm', location: 'Kayes' },
   { id: 2, farmerId: 1, name: 'River Field', location: 'Kayes' },

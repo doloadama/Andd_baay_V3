@@ -25,32 +25,32 @@ const Analytics: React.FC<AnalyticsProps> = ({ user, t, lang }) => {
 
     return (
         <div>
-            <h2 className="text-3xl font-semibold text-gray-800 mb-6">{t('analyticsAndInsights', lang)}</h2>
+            <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-6">{t('analyticsAndInsights', lang)}</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('cropYieldOverTime', lang)}</h3>
-                    <div className="flex items-center justify-center h-64 bg-gray-100 rounded-md">
-                        <p className="text-gray-500">{t('chartPlaceholder', lang)}</p>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">{t('cropYieldOverTime', lang)}</h3>
+                    <div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-gray-700 rounded-md">
+                        <p className="text-gray-500 dark:text-gray-400">{t('chartPlaceholder', lang)}</p>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('revenueVsExpenses', lang)}</h3>
-                    <div className="flex items-center justify-center h-64 bg-gray-100 rounded-md">
-                        <p className="text-gray-500">{t('chartPlaceholder', lang)}</p>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">{t('revenueVsExpenses', lang)}</h3>
+                    <div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-gray-700 rounded-md">
+                        <p className="text-gray-500 dark:text-gray-400">{t('chartPlaceholder', lang)}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-semibold mb-4 text-gray-700">{t('aiInsightsTitle', lang)}</h3>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200">{t('aiInsightsTitle', lang)}</h3>
                 <div className="flex space-x-2">
                     <input
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t('aiInsightsPlaceholder', lang)}
-                        className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-grow p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                         onClick={handleGetInsights}
@@ -61,9 +61,9 @@ const Analytics: React.FC<AnalyticsProps> = ({ user, t, lang }) => {
                     </button>
                 </div>
                 {insights && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-                        <h4 className="font-semibold text-gray-800 mb-2">{t('analysisResults', lang)}</h4>
-                        <p className="text-gray-600 whitespace-pre-wrap">{insights}</p>
+                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-700">
+                        <h4 className="font-semibold text-gray-800 dark:text-gray-100 mb-2">{t('analysisResults', lang)}</h4>
+                        <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{insights}</p>
                     </div>
                 )}
             </div>

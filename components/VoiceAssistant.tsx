@@ -143,9 +143,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ t, lang }) => {
 
     return (
         <div>
-            <h2 className="text-3xl font-semibold text-gray-800 mb-6">{t('navVoiceAssistant', lang)}</h2>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <p className="mb-4">{t('voiceAssistantDesc', lang)}</p>
+            <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-6">{t('navVoiceAssistant', lang)}</h2>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <p className="mb-4 text-gray-700 dark:text-gray-300">{t('voiceAssistantDesc', lang)}</p>
                 <div className="flex items-center space-x-4">
                      <button 
                         onClick={isConversing ? stopConversation : startConversation}
@@ -153,11 +153,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ t, lang }) => {
                      >
                         {isConversing ? t('stopConversation', lang) : t('startConversation', lang)}
                     </button>
-                    <p className="text-gray-600 font-medium">Status: {status}</p>
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">Status: {status}</p>
                 </div>
-                <div className="mt-6 p-4 bg-gray-50 border rounded-md h-64 overflow-y-auto">
-                    <h4 className="font-semibold mb-2">Transcript</h4>
-                    {transcript.map((line, index) => <p key={index} className="text-sm">{line}</p>)}
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-md h-64 overflow-y-auto">
+                    <h4 className="font-semibold mb-2 text-gray-800 dark:text-gray-200">Transcript</h4>
+                    {transcript.map((line, index) => <p key={index} className="text-sm text-gray-700 dark:text-gray-300">{line}</p>)}
                 </div>
             </div>
         </div>

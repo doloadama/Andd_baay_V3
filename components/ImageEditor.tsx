@@ -59,9 +59,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ t, lang }) => {
 
     return (
         <div>
-            <h2 className="text-3xl font-semibold text-gray-800 mb-6">{t('navImageStudio', lang)}</h2>
+            <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-6">{t('navImageStudio', lang)}</h2>
 
-            <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                 <input
                     type="file"
                     accept="image/*"
@@ -78,31 +78,31 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ t, lang }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="text-center">
-                        <h3 className="font-semibold text-lg mb-2">{t('original', lang)}</h3>
-                        <div className="aspect-square bg-gray-100 rounded-md flex items-center justify-center">
-                            {originalImage ? <img src={originalImage} alt="Original" className="max-h-full max-w-full rounded-md" /> : <p className="text-gray-500">{t('noImageUploaded', lang)}</p>}
+                        <h3 className="font-semibold text-lg mb-2 dark:text-gray-200">{t('original', lang)}</h3>
+                        <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center">
+                            {originalImage ? <img src={originalImage} alt="Original" className="max-h-full max-w-full rounded-md" /> : <p className="text-gray-500 dark:text-gray-400">{t('noImageUploaded', lang)}</p>}
                         </div>
                     </div>
                     <div className="text-center">
-                        <h3 className="font-semibold text-lg mb-2">{t('edited', lang)}</h3>
-                        <div className="aspect-square bg-gray-100 rounded-md flex items-center justify-center">
-                            {loading && <p className="text-gray-500">{t('generating', lang)}</p>}
+                        <h3 className="font-semibold text-lg mb-2 dark:text-gray-200">{t('edited', lang)}</h3>
+                        <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center">
+                            {loading && <p className="text-gray-500 dark:text-gray-400">{t('generating', lang)}</p>}
                             {error && <p className="text-red-500">{error}</p>}
                             {editedImage && <img src={editedImage} alt="Edited" className="max-h-full max-w-full rounded-md" />}
-                            {!loading && !error && !editedImage && <p className="text-gray-500">{t('editResultPlaceholder', lang)}</p>}
+                            {!loading && !error && !editedImage && <p className="text-gray-500 dark:text-gray-400">{t('editResultPlaceholder', lang)}</p>}
                         </div>
                     </div>
                 </div>
 
                 {originalImage && (
                     <div className="mt-6">
-                        <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">{t('editInstruction', lang)}</label>
+                        <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editInstruction', lang)}</label>
                         <textarea
                             id="prompt"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             placeholder={t('editInstructionPlaceholder', lang)}
-                            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             rows={2}
                         />
                         <button

@@ -87,12 +87,12 @@ INSTALLED_APPS = [
     'corsheaders',
 
     # Local apps
-    'users',
-    'sites',
-    'projects',
-    'market',
-    'analytics',
-    'finance',
+    'users.apps.UsersConfig',
+    'sites.apps.SitesConfig',
+    'projects.apps.ProjectsConfig',
+    'market.apps.MarketConfig',
+    'analytics.apps.AnalyticsConfig',
+    'finance.apps.FinanceConfig',
 ]
 
 MIDDLEWARE = [
@@ -346,10 +346,65 @@ class Transaction(models.Model):
     description = models.CharField(max_length=255)
     related_investment = models.ForeignKey(Investment, on_delete=models.SET_NULL, null=True, blank=True)
     related_product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
+    is_manual = models.BooleanField(default=True) # Distinguish manual vs auto-generated
 
     def __str__(self):
         return f"{self.type.capitalize()} of {self.amount} for {self.user.email}"
 ```
+
+### 5.6 Signals for Automatic Transactions
+
+To improve data integrity, we can use Django signals to automatically create an 'expense' transaction whenever a new investment is made.
+
+First, create a new `signals.py` file in the `finance` app.
+
+**File: `andd_baay/finance/signals.py`**
+```python
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Investment, Transaction
+
+@receiver(post_save, sender=Investment)
+def create_investment_transaction(sender, instance, created, **kwargs):
+    """
+    Automatically create an expense transaction when a new investment is saved.
+    """
+    if created:
+        Transaction.objects.create(
+            user=instance.farmer,
+            type='expense',
+            amount=instance.amount,
+            date=instance.date,
+            description=f"Expense for {instance.name}",
+            related_investment=instance,
+            is_manual=False  # This is a system-generated transaction
+        )
+```
+
+Now, register the signal by updating the `apps.py` file for the `finance` app.
+
+**File: `andd_baay/finance/apps.py`**
+```python
+from django.apps import AppConfig
+
+class FinanceConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'finance'
+
+    def ready(self):
+        import finance.signals # Import signals
+```
+Also update the `apps.py` file for all other apps to ensure consistency.
+
+**File: `andd_baay/users/apps.py`**
+```python
+from django.apps import AppConfig
+
+class UsersConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'users'
+```
+*(Repeat this pattern for `sites`, `projects`, `market`, and `analytics` apps as well.)*
 
 ---
 
@@ -403,13 +458,24 @@ class IsProjectOwnerOrReadOnly(permissions.BasePermission):
 ```python
 from rest_framework import permissions
 
-class IsTransactionOwner(permissions.BasePermission):
+class IsOwner(permissions.BasePermission):
+    """
+    Generic owner check for both Investment and Transaction.
+    """
     def has_object_permission(self, request, view, obj):
-        return obj.user == request.user
+        # Check for 'user' field (Transaction) or 'farmer' field (Investment)
+        return getattr(obj, 'user', getattr(obj, 'farmer', None)) == request.user
 
-class IsInvestmentOwner(permissions.BasePermission):
+class IsManualTransactionOrReadOnly(permissions.BasePermission):
+    """
+    Allow read-only for any transaction owned by the user.
+    Allow write access only if the transaction is manually created.
+    """
     def has_object_permission(self, request, view, obj):
-        return obj.farmer == request.user
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # Write permissions are only allowed for manual transactions.
+        return obj.is_manual
 ```
 
 ---
@@ -430,7 +496,6 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
     
     def create(self, validated_data):
-        # FIX: Split 'name' into 'first_name' and 'last_name' for the model
         full_name = validated_data.pop('name', '')
         name_parts = full_name.split(' ', 1)
         first_name = name_parts[0]
@@ -454,19 +519,16 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['email', 'role']
     
     def update(self, instance, validated_data):
-        # FIX: Split 'name' during update as well
         if 'name' in validated_data:
             full_name = validated_data.pop('name', '')
             name_parts = full_name.split(' ', 1)
             instance.first_name = name_parts[0]
             instance.last_name = name_parts[1] if len(name_parts) > 1 else ''
         
-        # Update other fields
         instance.phone = validated_data.get('phone', instance.phone)
         instance.location = validated_data.get('location', instance.location)
         instance.save()
         return instance
-
 ```
 
 **File: `andd_baay/users/views.py`**
@@ -651,18 +713,18 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
-        read_only_fields = ('user',)
+        read_only_fields = ('user', 'is_manual', 'related_investment', 'related_product')
 ```
 **File: `andd_baay/finance/views.py`**
 ```python
-from rest_framework import viewsets, mixins
+from rest_framework import viewsets
 from .models import Investment, Transaction
 from .serializers import InvestmentSerializer, TransactionSerializer
-from .permissions import IsInvestmentOwner, IsTransactionOwner
+from .permissions import IsOwner, IsManualTransactionOrReadOnly
 
 class InvestmentViewSet(viewsets.ModelViewSet):
     serializer_class = InvestmentSerializer
-    permission_classes = [IsInvestmentOwner]
+    permission_classes = [IsOwner]
 
     def get_queryset(self):
         return Investment.objects.filter(farmer=self.request.user)
@@ -670,12 +732,16 @@ class InvestmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(farmer=self.request.user)
 
-class TransactionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
-    permission_classes = [IsTransactionOwner]
+    permission_classes = [IsOwner, IsManualTransactionOrReadOnly]
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        # When a user creates a transaction, it's always manual
+        serializer.save(user=self.request.user, is_manual=True)
 ```
 
 ### 7.6 Analytics App
@@ -827,49 +893,36 @@ def seed_data():
     u2 = User.objects.create_user('binta@market.com', 'password123', first_name='Binta', last_name='Diallo', phone='555-0102', location='Sikasso, Mali', role='SELLER')
     u3 = User.objects.create_user('moussa@agri.com', 'password123', first_name='Moussa', last_name='Coulibaly', phone='555-0103', location='Koulikoro, Mali', role='BOTH')
     u4 = User.objects.create_user('fatou@farm.com', 'password123', first_name='Fatoumata', last_name='Keita', phone='555-0104', location='Ségou, Mali', role='FARMER')
-    u5 = User.objects.create_user('awa@agribusiness.com', 'password123', first_name='Awa', last_name='Cissoko', phone='555-0105', location='Bamako, Mali', role='BOTH')
-    u6 = User.objects.create_user('issa@seller.com', 'password123', first_name='Issa', last_name='Sanogo', phone='555-0106', location='Mopti, Mali', role='SELLER')
 
     # Create Sites
     s1 = Site.objects.create(farmer=u1, name='Kayes Sun Farm', location='Kayes')
-    s2 = Site.objects.create(farmer=u1, name='River Field', location='Kayes')
     s3 = Site.objects.create(farmer=u3, name='Koulikoro Oasis', location='Koulikoro')
     s4 = Site.objects.create(farmer=u4, name='Ségou Fertile Lands', location='Ségou')
-    s5 = Site.objects.create(farmer=u4, name='Bani River Plots', location='Ségou')
-    s6 = Site.objects.create(farmer=u5, name='Bamako Urban Farm', location='Bamako')
 
     # Create Projects
     p1 = Project.objects.create(site=s1, name='Mango Season 2024', description='Organic Kent mango cultivation.', crop_type='Mango', start_date=date(2024, 3, 1), end_date=date(2024, 8, 15), expected_yield=5000, status='Harvesting')
-    p2 = Project.objects.create(site=s2, name='Millet Harvest', description='High-yield pearl millet for local markets.', crop_type='Millet', start_date=date(2024, 6, 1), end_date=date(2024, 10, 30), expected_yield=10000, status='In Progress')
     p3 = Project.objects.create(site=s3, name='Tomato Greenhouse', description='Year-round tomato production.', crop_type='Tomato', start_date=date(2024, 1, 1), end_date=date(2024, 12, 31), expected_yield=2000, status='Completed')
-    p4 = Project.objects.create(site=s3, name='Okra Planting', description='Early-season okra for premium price.', crop_type='Okra', start_date=date(2024, 4, 15), end_date=date(2024, 7, 20), expected_yield=1500, status='Harvesting')
     p5 = Project.objects.create(site=s4, name='Rice Paddy Cultivation', description='High-quality rice for export.', crop_type='Rice', start_date=date(2024, 5, 20), end_date=date(2024, 11, 10), expected_yield=25000, status='In Progress')
-    p6 = Project.objects.create(site=s5, name='Cotton Fields Expansion', description='Expanding cotton production capacity.', crop_type='Cotton', start_date=date(2025, 2, 1), end_date=date(2025, 9, 1), expected_yield=8000, status='Planning')
-    p7 = Project.objects.create(site=s6, name='Herb Garden 2024', description='Cultivating basil and mint for local restaurants.', crop_type='Herbs', start_date=date(2024, 4, 1), end_date=date(2024, 11, 1), expected_yield=500, status='In Progress')
     
     # Create Products
     prod1 = Product.objects.create(project=p1, product_name='Organic Kent Mangoes', quantity=2000, price=1.50, unit='kg', availability_status='Available')
     prod2 = Product.objects.create(project=p3, product_name='Greenhouse Tomatoes', quantity=500, price=2.00, unit='kg', availability_status='Available')
-    Product.objects.create(project=p4, product_name='Fresh Okra', quantity=0, price=3.00, unit='kg', availability_status='Out of Stock')
 
-    # Create Investments
-    inv1 = Investment.objects.create(farmer=u1, name='Tractor Purchase', amount=15000, date=date(2024, 1, 20), description='New John Deere 5050D for mango and millet fields.')
-    inv2 = Investment.objects.create(farmer=u3, name='Greenhouse Setup', amount=8000, date=date(2023, 12, 5), description='Materials and labor for the new tomato greenhouse.', related_project=p3)
-    inv3 = Investment.objects.create(farmer=u4, name='Irrigation System Upgrade', amount=12000, date=date(2024, 3, 10), description='Drip irrigation for Ségou rice paddies.', related_project=p5)
-    inv4 = Investment.objects.create(farmer=u1, name='Seed Funding (Millet)', amount=1500, date=date(2024, 5, 15), description='High-yield pearl millet seeds.', related_project=p2)
+    # Create Investments (this will auto-create expense transactions via signals)
+    Investment.objects.create(farmer=u1, name='Tractor Purchase', amount=15000, date=date(2024, 1, 20), description='New John Deere 5050D for mango and millet fields.')
+    Investment.objects.create(farmer=u3, name='Greenhouse Setup', amount=8000, date=date(2023, 12, 5), description='Materials and labor for the new tomato greenhouse.', related_project=p3)
+    Investment.objects.create(farmer=u4, name='Irrigation System Upgrade', amount=12000, date=date(2024, 3, 10), description='Drip irrigation for Ségou rice paddies.', related_project=p5)
     
-    # Create Transactions
-    Transaction.objects.create(user=u1, type='expense', amount=15000, date=date(2024, 1, 20), description='Expense for Tractor Purchase', related_investment=inv1)
-    Transaction.objects.create(user=u1, type='expense', amount=1500, date=date(2024, 5, 15), description='Expense for Seed Funding (Millet)', related_investment=inv4)
-    Transaction.objects.create(user=u1, type='income', amount=1500, date=date(2024, 7, 10), description='Sale of 1000kg Organic Kent Mangoes', related_product=prod1)
+    # Create auto-generated income transactions
+    Transaction.objects.create(user=u1, type='income', amount=1500, date=date(2024, 7, 10), description='Sale of 1000kg Organic Kent Mangoes', related_product=prod1, is_manual=False)
+    Transaction.objects.create(user=u3, type='income', amount=800, date=date(2024, 6, 25), description='Sale of 400kg Greenhouse Tomatoes', related_product=prod2, is_manual=False)
     
-    Transaction.objects.create(user=u3, type='expense', amount=8000, date=date(2023, 12, 5), description='Expense for Greenhouse Setup', related_investment=inv2)
-    Transaction.objects.create(user=u3, type='income', amount=800, date=date(2024, 6, 25), description='Sale of 400kg Greenhouse Tomatoes', related_product=prod2)
+    # Create transactions for sellers (purchases)
+    Transaction.objects.create(user=u2, type='expense', amount=750, date=date(2024, 7, 11), description='Purchase of 500kg Organic Kent Mangoes', related_product=prod1, is_manual=False)
     
-    Transaction.objects.create(user=u4, type='expense', amount=12000, date=date(2024, 3, 10), description='Expense for Irrigation System Upgrade', related_investment=inv3)
-    
-    Transaction.objects.create(user=u2, type='expense', amount=750, date=date(2024, 7, 11), description='Purchase of 500kg Organic Kent Mangoes', related_product=prod1)
-    Transaction.objects.create(user=u2, type='expense', amount=400, date=date(2024, 6, 26), description='Purchase of 200kg Greenhouse Tomatoes', related_product=prod2)
+    # Create sample MANUAL transactions
+    Transaction.objects.create(user=u1, type='expense', amount=250, date=date(2024, 7, 1), description='Fuel for tractor', is_manual=True)
+    Transaction.objects.create(user=u3, type='income', amount=150, date=date(2024, 7, 5), description='Sale of surplus seeds', is_manual=True)
 
     print("Data seeding complete.")
 
@@ -913,6 +966,6 @@ Your Django backend is now running at `http://127.0.0.1:8000/`.
 - **Sites:** `GET/POST/PUT/DELETE /api/sites/`
 - **Projects:** `GET/POST/PUT/DELETE /api/projects/`
 - **Products:** `GET/POST/PUT/DELETE /api/products/`
-- **Investments:** `GET/POST /api/finance/investments/`
-- **Transactions:** `GET /api/finance/transactions/`
+- **Investments:** `GET/POST/PUT/DELETE /api/finance/investments/`
+- **Transactions:** `GET/POST/PUT/DELETE /api/finance/transactions/`
 - **Analytics Summary:** `GET /api/analytics/summary/`
