@@ -10,15 +10,17 @@ This document contains all the code and instructions needed to build the complet
 
 ## 2. Initial Project Setup
 
-Follow these steps in your terminal:
+Follow these steps in your Windows Command Prompt or PowerShell:
 
 ```bash
 # 1. Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate
 
 # 2. Create a file for project requirements
-touch requirements.txt
+# This command creates an empty 'requirements.txt' file.
+# If it doesn't work, you can create the file manually in your editor.
+echo. > requirements.txt
 
 # 3. Create the Django project and initial apps
 pip install django
@@ -856,10 +858,10 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-Next, run the seeding script.
+Next, run the seeding script. This script is designed to be run directly.
 
 ```bash
-python manage.py shell < seed_data.py
+python seed_data.py
 ```
 ---
 
