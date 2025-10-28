@@ -6,9 +6,7 @@ import Marketplace from './components/Marketplace';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import Finance from './components/Finance';
-import VoiceAssistant from './components/VoiceAssistant';
 import AuthModal from './components/AuthModal';
-import ImageEditor from './components/ImageEditor';
 import SiteManagement from './components/Banner';
 import SiteDetail from './components/SiteDetail';
 import CartView from './components/CartView';
@@ -161,15 +159,11 @@ const App: React.FC = () => {
       case View.CART:
         return <CartView {...commonProps} cart={cart} updateCartItemQuantity={updateCartItemQuantity} removeCartItem={removeCartItem} setView={setView} />;
       case View.ANALYTICS:
-        return <Analytics {...commonProps} />;
+        return <Analytics {...commonProps} isDarkMode={isDarkMode} />;
       case View.FINANCE:
-        return <Finance {...commonProps} />;
+        return <Finance {...commonProps} isDarkMode={isDarkMode} />;
       case View.PROFILE:
         return <Profile {...commonProps} onProfileUpdate={handleProfileUpdate} />;
-      case View.IMAGE_STUDIO:
-        return <ImageEditor {...commonProps} />;
-      case View.VOICE_ASSISTANT:
-        return <VoiceAssistant {...commonProps} />;
       default:
         return <Dashboard {...commonProps} isHarvestMode={isHarvestMode} isDarkMode={isDarkMode} />;
     }

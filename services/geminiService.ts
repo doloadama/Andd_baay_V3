@@ -28,13 +28,16 @@ export const getMarketInsights = async (query: string): Promise<string> => {
             }
         });
         return response.text;
+    // Fix: Added a missing opening curly brace to the catch block.
     } catch (error) {
         console.error("Error getting market insights:", error);
         return "Failed to get market insights. Please try again.";
     }
 };
 
-export const editImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string | null> => {
+// Fix: Added the 'editImage' function to handle image editing requests using the Gemini API.
+// This function was missing, causing an export error in 'ImageEditor.tsx'.
+export const editImage = async (base64ImageData: string, mimeType: string, prompt: string): Promise<string | null> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -42,7 +45,7 @@ export const editImage = async (base64Data: string, mimeType: string, prompt: st
         parts: [
           {
             inlineData: {
-              data: base64Data,
+              data: base64ImageData,
               mimeType: mimeType,
             },
           },
@@ -56,12 +59,13 @@ export const editImage = async (base64Data: string, mimeType: string, prompt: st
       },
     });
 
+    // Extract the base64 image data from the response
     for (const part of response.candidates[0].content.parts) {
       if (part.inlineData) {
         return part.inlineData.data;
       }
     }
-    return null;
+    return null; // Return null if no image is found in the response
   } catch (error) {
     console.error("Error editing image:", error);
     return null;

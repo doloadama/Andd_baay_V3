@@ -6,7 +6,6 @@ This document contains all the code and instructions needed to build the complet
 
 - Python 3.8+ and Pip
 - PostgreSQL
-- Redis
 - A virtual environment tool (e.g., `venv`)
 
 ## 2. Initial Project Setup
@@ -30,7 +29,7 @@ python manage.py startapp sites
 python manage.py startapp projects
 python manage.py startapp market
 python manage.py startapp analytics
-python manage.py startapp finance # New app for investments/transactions
+python manage.py startapp finance
 ```
 
 This will create the necessary folder structure. Now, you'll populate the files with the code below.
@@ -47,7 +46,6 @@ psycopg2-binary
 djangorestframework-simplejwt
 django-cors-headers
 django-filter
-redis
 Pillow
 ```
 
@@ -303,7 +301,8 @@ class Product(models.Model):
         ('Out of Stock', 'Out of Stock'),
         ('Pre-order', 'Pre-order'),
     )
-    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='product')
+    # A project can have multiple product listings (e.g. Grade A, Grade B)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='products')
     product_name = models.CharField(max_length=100)
     quantity = models.FloatField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -321,80 +320,44 @@ class Product(models.Model):
 from django.db import models
 from users.models import User
 from projects.models import Project
-from market.models import Product
-
-class Investment(models.Model):
-    farmer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='investments')
-    name = models.CharField(max_length=100)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    date = models.DateField()
-    description = models.TextField(blank=True)
-    related_project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.name} - {self.farmer.email}"
+from sites.models import Site
 
 class Transaction(models.Model):
     TRANSACTION_TYPE_CHOICES = (
         ('income', 'Income'),
         ('expense', 'Expense'),
     )
+    EXPENSE_CATEGORY_CHOICES = (
+        ('Equipment', 'Equipment'),
+        ('Supplies', 'Supplies'),
+        ('Infrastructure', 'Infrastructure'),
+        ('Labor', 'Labor'),
+        ('Utilities', 'Utilities'),
+        ('Other', 'Other'),
+    )
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     type = models.CharField(max_length=7, choices=TRANSACTION_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     date = models.DateField()
     description = models.CharField(max_length=255)
-    related_investment = models.ForeignKey(Investment, on_delete=models.SET_NULL, null=True, blank=True)
-    related_product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
-    is_manual = models.BooleanField(default=True) # Distinguish manual vs auto-generated
+    
+    site = models.ForeignKey(Site, on_delete=models.SET_NULL, null=True, blank=True)
+    project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    category = models.CharField(
+        max_length=50, 
+        choices=EXPENSE_CATEGORY_CHOICES, 
+        null=True, 
+        blank=True
+    )
 
     def __str__(self):
         return f"{self.type.capitalize()} of {self.amount} for {self.user.email}"
 ```
 
-### 5.6 Signals for Automatic Transactions
-
-To improve data integrity, we can use Django signals to automatically create an 'expense' transaction whenever a new investment is made.
-
-First, create a new `signals.py` file in the `finance` app.
-
-**File: `andd_baay/finance/signals.py`**
-```python
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from .models import Investment, Transaction
-
-@receiver(post_save, sender=Investment)
-def create_investment_transaction(sender, instance, created, **kwargs):
-    """
-    Automatically create an expense transaction when a new investment is saved.
-    """
-    if created:
-        Transaction.objects.create(
-            user=instance.farmer,
-            type='expense',
-            amount=instance.amount,
-            date=instance.date,
-            description=f"Expense for {instance.name}",
-            related_investment=instance,
-            is_manual=False  # This is a system-generated transaction
-        )
-```
-
-Now, register the signal by updating the `apps.py` file for the `finance` app.
-
-**File: `andd_baay/finance/apps.py`**
-```python
-from django.apps import AppConfig
-
-class FinanceConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'finance'
-
-    def ready(self):
-        import finance.signals # Import signals
-```
-Also update the `apps.py` file for all other apps to ensure consistency.
+### 5.6 App Configurations
+Update the `apps.py` file for all apps to ensure consistency.
 
 **File: `andd_baay/users/apps.py`**
 ```python
@@ -404,7 +367,7 @@ class UsersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'users'
 ```
-*(Repeat this pattern for `sites`, `projects`, `market`, and `analytics` apps as well.)*
+*(Repeat this pattern for `sites`, `projects`, `market`, `finance` and `analytics` apps as well.)*
 
 ---
 
@@ -432,7 +395,6 @@ class IsSiteOwner(permissions.BasePermission):
     Custom permission to only allow the owner of a site to manage its projects.
     """
     def has_object_permission(self, request, view, obj):
-        # Write permissions are only allowed to the owner of the site.
         return obj.site.farmer == request.user
 ```
 
@@ -449,7 +411,6 @@ class IsProjectOwnerOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
-        # Write permissions are only allowed to the owner of the project.
         return obj.project.site.farmer == request.user
 
 ```
@@ -460,22 +421,10 @@ from rest_framework import permissions
 
 class IsOwner(permissions.BasePermission):
     """
-    Generic owner check for both Investment and Transaction.
+    Custom permission to only allow owners of a transaction to view/edit it.
     """
     def has_object_permission(self, request, view, obj):
-        # Check for 'user' field (Transaction) or 'farmer' field (Investment)
-        return getattr(obj, 'user', getattr(obj, 'farmer', None)) == request.user
-
-class IsManualTransactionOrReadOnly(permissions.BasePermission):
-    """
-    Allow read-only for any transaction owned by the user.
-    Allow write access only if the transaction is manually created.
-    """
-    def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        # Write permissions are only allowed for manual transactions.
-        return obj.is_manual
+        return obj.user == request.user
 ```
 
 ---
@@ -536,7 +485,6 @@ class ProfileSerializer(serializers.ModelSerializer):
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import UserSerializer, ProfileSerializer
 from .models import User
 
@@ -602,7 +550,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = '__all__'
-        read_only_fields = ('site',)
+        # site is writable so user can select it
 ```
 **File: `andd_baay/projects/views.py`**
 ```python
@@ -621,9 +569,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return Project.objects.filter(site__farmer=self.request.user)
 
     def perform_create(self, serializer):
-        site_id = self.request.data.get('site')
+        site_id = self.request.data.get('siteId') # Match frontend key
         if not site_id:
-            raise serializers.ValidationError({"site": "This field is required."})
+            raise serializers.ValidationError({"siteId": "This field is required."})
         
         try:
             site = Site.objects.get(id=site_id)
@@ -631,7 +579,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("You can only create projects on your own sites.")
             serializer.save(site=site)
         except Site.DoesNotExist:
-            raise serializers.ValidationError({"site": "Site not found."})
+            raise serializers.ValidationError({"siteId": "Site not found."})
 ```
 
 ### 7.4 Market App
@@ -669,79 +617,54 @@ class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser) # Support file uploads
 
     def get_permissions(self):
-        """
-        Allow anyone to view (list/retrieve), but only authenticated project 
-        owners to create/update/delete.
-        """
         if self.action in ['list', 'retrieve']:
             self.permission_classes = [AllowAny]
         else:
-            # Uses our custom permission for write actions
             self.permission_classes = [IsProjectOwnerOrReadOnly]
         return super(ProductViewSet, self).get_permissions()
 
     def perform_create(self, serializer):
-        # We need the project ID from the request body to associate the product
-        project_id = self.request.data.get('project')
+        project_id = self.request.data.get('projectId') # Match frontend key
         if not project_id:
-            raise serializers.ValidationError({"project": "This field is required."})
+            raise serializers.ValidationError({"projectId": "This field is required."})
             
         try:
             project = Project.objects.get(id=project_id)
-            # Security check: ensure the user owns the project
             if project.site.farmer != self.request.user:
                 raise PermissionDenied("You can only create products for your own projects.")
             serializer.save(project=project)
         except Project.DoesNotExist:
-            raise serializers.ValidationError({"project": "Project not found."})
-
+            raise serializers.ValidationError({"projectId": "Project not found."})
 ```
 
 ### 7.5 Finance App
 **File: `andd_baay/finance/serializers.py`**
 ```python
 from rest_framework import serializers
-from .models import Investment, Transaction
-
-class InvestmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Investment
-        fields = '__all__'
-        read_only_fields = ('farmer',)
+from .models import Transaction
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = '__all__'
-        read_only_fields = ('user', 'is_manual', 'related_investment', 'related_product')
+        fields = ['id', 'user', 'type', 'amount', 'date', 'description', 'site', 'project', 'category']
+        read_only_fields = ('user',)
 ```
 **File: `andd_baay/finance/views.py`**
 ```python
 from rest_framework import viewsets
-from .models import Investment, Transaction
-from .serializers import InvestmentSerializer, TransactionSerializer
-from .permissions import IsOwner, IsManualTransactionOrReadOnly
-
-class InvestmentViewSet(viewsets.ModelViewSet):
-    serializer_class = InvestmentSerializer
-    permission_classes = [IsOwner]
-
-    def get_queryset(self):
-        return Investment.objects.filter(farmer=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(farmer=self.request.user)
+from .models import Transaction
+from .serializers import TransactionSerializer
+from .permissions import IsOwner
 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
-    permission_classes = [IsOwner, IsManualTransactionOrReadOnly]
+    permission_classes = [IsOwner]
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        # When a user creates a transaction, it's always manual
-        serializer.save(user=self.request.user, is_manual=True)
+        serializer.save(user=self.request.user)
 ```
 
 ### 7.6 Analytics App
@@ -755,43 +678,36 @@ from projects.models import Project
 from market.models import Product
 
 class AnalyticsSummaryView(APIView):
-    """
-    Provides aggregated data for the analytics dashboard.
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # Aggregate project statuses
-        project_status_data = list(Project.objects.values('status').annotate(count=Count('id')))
+        project_status_data = list(Project.objects.values('status').annotate(value=Count('id')).values('status', 'value'))
+        project_status_data = [{'name': item['status'], 'value': item['value']} for item in project_status_data]
 
-        # Aggregate total revenue by crop type from products
-        sales_by_crop_data = list(
+        revenue_by_crop_data = list(
             Product.objects.values('project__crop_type')
             .annotate(revenue=Sum(F('price') * F('quantity')))
             .values('project__crop_type', 'revenue')
         )
-        # Rename key for consistency with frontend
-        sales_by_crop_data = [
+        revenue_by_crop_data = [
             {'name': item['project__crop_type'], 'revenue': item['revenue']}
-            for item in sales_by_crop_data
+            for item in revenue_by_crop_data
         ]
 
-        # Aggregate expected yield by crop type from projects
-        crop_yield_data = list(
+        yield_by_crop_data = list(
             Project.objects.values('crop_type')
             .annotate(yield_sum=Sum('expected_yield'))
             .values('crop_type', 'yield_sum')
         )
-        # Rename key
-        crop_yield_data = [
+        yield_by_crop_data = [
             {'name': item['crop_type'], 'yield': item['yield_sum']}
-            for item in crop_yield_data
+            for item in yield_by_crop_data
         ]
 
         summary_data = {
             'projectStatusData': project_status_data,
-            'salesByCropData': sales_by_crop_data,
-            'cropYieldData': crop_yield_data,
+            'revenueByCropData': revenue_by_crop_data,
+            'yieldByCropData': yield_by_crop_data,
         }
         
         return Response(summary_data)
@@ -837,13 +753,12 @@ from rest_framework.routers import DefaultRouter
 from sites.views import SiteViewSet
 from projects.views import ProjectViewSet
 from market.views import ProductViewSet
-from finance.views import InvestmentViewSet, TransactionViewSet
+from finance.views import TransactionViewSet
 
 router = DefaultRouter()
 router.register(r'sites', SiteViewSet, basename='site')
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'products', ProductViewSet, basename='product')
-router.register(r'finance/investments', InvestmentViewSet, basename='investment')
 router.register(r'finance/transactions', TransactionViewSet, basename='transaction')
 
 urlpatterns = [
@@ -875,12 +790,11 @@ from users.models import User
 from sites.models import Site
 from projects.models import Project
 from market.models import Product
-from finance.models import Investment, Transaction
+from finance.models import Transaction
 
 def seed_data():
     # Clear existing data
     Transaction.objects.all().delete()
-    Investment.objects.all().delete()
     Product.objects.all().delete()
     Project.objects.all().delete()
     Site.objects.all().delete()
@@ -889,46 +803,49 @@ def seed_data():
     print("Seeding data...")
 
     # Create Users
-    u1 = User.objects.create_user('adama@farm.com', 'password123', first_name='Adama', last_name='Traoré', phone='555-0101', location='Kayes, Mali', role='FARMER')
-    u2 = User.objects.create_user('binta@market.com', 'password123', first_name='Binta', last_name='Diallo', phone='555-0102', location='Sikasso, Mali', role='SELLER')
-    u3 = User.objects.create_user('moussa@agri.com', 'password123', first_name='Moussa', last_name='Coulibaly', phone='555-0103', location='Koulikoro, Mali', role='BOTH')
-    u4 = User.objects.create_user('fatou@farm.com', 'password123', first_name='Fatoumata', last_name='Keita', phone='555-0104', location='Ségou, Mali', role='FARMER')
+    u1 = User.objects.create_user('adama@farm.com', 'password123', first_name='Adama', last_name='Traoré', phone='555-0101', location='Kayes', role='FARMER')
+    u2 = User.objects.create_user('binta@market.com', 'password123', first_name='Binta', last_name='Diallo', phone='555-0102', location='Sikasso', role='SELLER')
+    u3 = User.objects.create_user('moussa@agri.com', 'password123', first_name='Moussa', last_name='Coulibaly', phone='555-0103', location='Koulikoro', role='BOTH')
+    u4 = User.objects.create_user('fatou@farm.com', 'password123', first_name='Fatoumata', last_name='Keita', phone='555-0104', location='Ségou', role='FARMER')
 
     # Create Sites
     s1 = Site.objects.create(farmer=u1, name='Kayes Sun Farm', location='Kayes')
+    s2 = Site.objects.create(farmer=u1, name='River Field', location='Kayes')
     s3 = Site.objects.create(farmer=u3, name='Koulikoro Oasis', location='Koulikoro')
     s4 = Site.objects.create(farmer=u4, name='Ségou Fertile Lands', location='Ségou')
 
     # Create Projects
     p1 = Project.objects.create(site=s1, name='Mango Season 2024', description='Organic Kent mango cultivation.', crop_type='Mango', start_date=date(2024, 3, 1), end_date=date(2024, 8, 15), expected_yield=5000, status='Harvesting')
+    p2 = Project.objects.create(site=s2, name='Millet Harvest', description='High-yield pearl millet for local markets.', crop_type='Millet', start_date=date(2024, 6, 1), end_date=date(2024, 10, 30), expected_yield=10000, status='In Progress')
     p3 = Project.objects.create(site=s3, name='Tomato Greenhouse', description='Year-round tomato production.', crop_type='Tomato', start_date=date(2024, 1, 1), end_date=date(2024, 12, 31), expected_yield=2000, status='Completed')
+    p4 = Project.objects.create(site=s3, name='Okra Planting', description='Early-season okra for premium price.', crop_type='Okra', start_date=date(2024, 4, 15), end_date=date(2024, 7, 20), expected_yield=1500, status='Harvesting')
     p5 = Project.objects.create(site=s4, name='Rice Paddy Cultivation', description='High-quality rice for export.', crop_type='Rice', start_date=date(2024, 5, 20), end_date=date(2024, 11, 10), expected_yield=25000, status='In Progress')
     
     # Create Products
-    prod1 = Product.objects.create(project=p1, product_name='Organic Kent Mangoes', quantity=2000, price=1.50, unit='kg', availability_status='Available')
-    prod2 = Product.objects.create(project=p3, product_name='Greenhouse Tomatoes', quantity=500, price=2.00, unit='kg', availability_status='Available')
+    Product.objects.create(project=p1, product_name='Organic Kent Mangoes', quantity=2000, price=1.50, unit='kg', availability_status='Available')
+    Product.objects.create(project=p3, product_name='Greenhouse Tomatoes', quantity=500, price=2.00, unit='kg', availability_status='Available')
+    Product.objects.create(project=p4, product_name='Fresh Okra', quantity=0, price=3.0, unit='kg', availability_status='Out of Stock')
 
-    # Create Investments (this will auto-create expense transactions via signals)
-    Investment.objects.create(farmer=u1, name='Tractor Purchase', amount=15000, date=date(2024, 1, 20), description='New John Deere 5050D for mango and millet fields.')
-    Investment.objects.create(farmer=u3, name='Greenhouse Setup', amount=8000, date=date(2023, 12, 5), description='Materials and labor for the new tomato greenhouse.', related_project=p3)
-    Investment.objects.create(farmer=u4, name='Irrigation System Upgrade', amount=12000, date=date(2024, 3, 10), description='Drip irrigation for Ségou rice paddies.', related_project=p5)
+    # Create Transactions
+    Transaction.objects.create(user=u1, type='expense', amount=15000, date=date(2024, 1, 20), description='Expense for Tractor Purchase', site=s1, category='Equipment')
+    Transaction.objects.create(user=u1, type='expense', amount=1500, date=date(2024, 5, 15), description='Expense for Seed Funding (Millet)', site=s2, project=p2, category='Supplies')
+    Transaction.objects.create(user=u1, type='income', amount=1500, date=date(2024, 7, 10), description='Sale of 1000kg Organic Kent Mangoes', site=s1, project=p1)
     
-    # Create auto-generated income transactions
-    Transaction.objects.create(user=u1, type='income', amount=1500, date=date(2024, 7, 10), description='Sale of 1000kg Organic Kent Mangoes', related_product=prod1, is_manual=False)
-    Transaction.objects.create(user=u3, type='income', amount=800, date=date(2024, 6, 25), description='Sale of 400kg Greenhouse Tomatoes', related_product=prod2, is_manual=False)
+    Transaction.objects.create(user=u3, type='expense', amount=8000, date=date(2023, 12, 5), description='Expense for Greenhouse Setup', site=s3, project=p3, category='Infrastructure')
+    Transaction.objects.create(user=u3, type='income', amount=800, date=date(2024, 6, 25), description='Sale of 400kg Greenhouse Tomatoes', site=s3, project=p3)
     
-    # Create transactions for sellers (purchases)
-    Transaction.objects.create(user=u2, type='expense', amount=750, date=date(2024, 7, 11), description='Purchase of 500kg Organic Kent Mangoes', related_product=prod1, is_manual=False)
-    
-    # Create sample MANUAL transactions
-    Transaction.objects.create(user=u1, type='expense', amount=250, date=date(2024, 7, 1), description='Fuel for tractor', is_manual=True)
-    Transaction.objects.create(user=u3, type='income', amount=150, date=date(2024, 7, 5), description='Sale of surplus seeds', is_manual=True)
+    Transaction.objects.create(user=u4, type='expense', amount=12000, date=date(2024, 3, 10), description='Expense for Irrigation System Upgrade', site=s4, project=p5, category='Infrastructure')
+
+    Transaction.objects.create(user=u2, type='expense', amount=750, date=date(2024, 7, 11), description='Purchase of 500kg Organic Kent Mangoes', category='Supplies')
+    Transaction.objects.create(user=u2, type='expense', amount=400, date=date(2024, 6, 26), description='Purchase of 200kg Greenhouse Tomatoes', category='Supplies')
 
     print("Data seeding complete.")
 
 if __name__ == '__main__':
     seed_data()
 ```
+
+---
 
 ## 10. Migrations and Database Seeding
 
@@ -966,6 +883,5 @@ Your Django backend is now running at `http://127.0.0.1:8000/`.
 - **Sites:** `GET/POST/PUT/DELETE /api/sites/`
 - **Projects:** `GET/POST/PUT/DELETE /api/projects/`
 - **Products:** `GET/POST/PUT/DELETE /api/products/`
-- **Investments:** `GET/POST/PUT/DELETE /api/finance/investments/`
 - **Transactions:** `GET/POST/PUT/DELETE /api/finance/transactions/`
 - **Analytics Summary:** `GET /api/analytics/summary/`

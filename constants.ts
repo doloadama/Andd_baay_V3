@@ -1,4 +1,4 @@
-import { User, Role, Site, Project, ProjectStatus, Product, AvailabilityStatus, Investment, Transaction } from './types';
+import { User, Role, Site, Project, ProjectStatus, Product, AvailabilityStatus, Transaction, ExpenseCategory } from './types';
 
 export const USERS: User[] = [
   { id: 1, name: 'Adama Traoré', email: 'adama@farm.com', phone: '555-0101', location: 'Kayes, Mali', role: Role.FARMER },
@@ -64,27 +64,20 @@ export const MOCK_PRODUCTS: Product[] = [
   { id: 5, projectId: 2, farmerId: 1, productName: 'Pearl Millet Grain', quantity: 5000, price: 0.5, unit: 'kg', availabilityStatus: AvailabilityStatus.PRE_ORDER, imageUrl: 'https://source.unsplash.com/400x300/?millet', location: 'Kayes', cropType: 'Millet', projectStatus: ProjectStatus.IN_PROGRESS },
 ];
 
-export const MOCK_INVESTMENTS: Investment[] = [
-    { id: 1, farmerId: 1, name: 'Tractor Purchase', amount: 15000, date: '2024-01-20', description: 'New John Deere 5050D for mango and millet fields.', relatedProjectId: null },
-    { id: 2, farmerId: 3, name: 'Greenhouse Setup', amount: 8000, date: '2023-12-05', description: 'Materials and labor for the new tomato greenhouse.', relatedProjectId: 3 },
-    { id: 3, farmerId: 4, name: 'Irrigation System Upgrade', amount: 12000, date: '2024-03-10', description: 'Drip irrigation for Ségou rice paddies.', relatedProjectId: 5 },
-    { id: 4, farmerId: 1, name: 'Seed Funding (Millet)', amount: 1500, date: '2024-05-15', description: 'High-yield pearl millet seeds.', relatedProjectId: 2 },
-];
-
 export const MOCK_TRANSACTIONS: Transaction[] = [
     // Farmer 1 (Adama)
-    { id: 1, userId: 1, type: 'expense', amount: 15000, date: '2024-01-20', description: 'Expense for Tractor Purchase', relatedInvestmentId: 1 },
-    { id: 2, userId: 1, type: 'expense', amount: 1500, date: '2024-05-15', description: 'Expense for Seed Funding (Millet)', relatedInvestmentId: 4 },
-    { id: 3, userId: 1, type: 'income', amount: 1500, date: '2024-07-10', description: 'Sale of 1000kg Organic Kent Mangoes', relatedProductId: 1 },
+    { id: 1, userId: 1, type: 'expense', amount: 15000, date: '2024-01-20', description: 'Expense for Tractor Purchase', siteId: 1, projectId: null, category: ExpenseCategory.EQUIPMENT },
+    { id: 2, userId: 1, type: 'expense', amount: 1500, date: '2024-05-15', description: 'Expense for Seed Funding (Millet)', siteId: 2, projectId: 2, category: ExpenseCategory.SUPPLIES },
+    { id: 3, userId: 1, type: 'income', amount: 1500, date: '2024-07-10', description: 'Sale of 1000kg Organic Kent Mangoes', siteId: 1, projectId: 1 },
     
     // Farmer 3 (Moussa)
-    { id: 4, userId: 3, type: 'expense', amount: 8000, date: '2023-12-05', description: 'Expense for Greenhouse Setup', relatedInvestmentId: 2 },
-    { id: 5, userId: 3, type: 'income', amount: 800, date: '2024-06-25', description: 'Sale of 400kg Greenhouse Tomatoes', relatedProductId: 2 },
+    { id: 4, userId: 3, type: 'expense', amount: 8000, date: '2023-12-05', description: 'Expense for Greenhouse Setup', siteId: 3, projectId: 3, category: ExpenseCategory.INFRASTRUCTURE },
+    { id: 5, userId: 3, type: 'income', amount: 800, date: '2024-06-25', description: 'Sale of 400kg Greenhouse Tomatoes', siteId: 3, projectId: 3 },
 
     // Farmer 4 (Fatoumata)
-    { id: 6, userId: 4, type: 'expense', amount: 12000, date: '2024-03-10', description: 'Expense for Irrigation System Upgrade', relatedInvestmentId: 3 },
+    { id: 6, userId: 4, type: 'expense', amount: 12000, date: '2024-03-10', description: 'Expense for Irrigation System Upgrade', siteId: 4, projectId: 5, category: ExpenseCategory.INFRASTRUCTURE },
     
     // Seller 2 (Binta)
-    { id: 7, userId: 2, type: 'expense', amount: 750, date: '2024-07-11', description: 'Purchase of 500kg Organic Kent Mangoes', relatedProductId: 1 },
-    { id: 8, userId: 2, type: 'expense', amount: 400, date: '2024-06-26', description: 'Purchase of 200kg Greenhouse Tomatoes', relatedProductId: 2 },
+    { id: 7, userId: 2, type: 'expense', amount: 750, date: '2024-07-11', description: 'Purchase of 500kg Organic Kent Mangoes', siteId: null, projectId: null, category: ExpenseCategory.SUPPLIES },
+    { id: 8, userId: 2, type: 'expense', amount: 400, date: '2024-06-26', description: 'Purchase of 200kg Greenhouse Tomatoes', siteId: null, projectId: null, category: ExpenseCategory.SUPPLIES },
 ];

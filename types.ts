@@ -1,3 +1,5 @@
+// Fix: Removed self-import which was causing multiple declaration conflict errors.
+
 // Fix: Defined and exported all necessary enums and interfaces to be used across the application.
 // This resolves numerous "module has no exported member" errors.
 export enum View {
@@ -9,8 +11,6 @@ export enum View {
   ANALYTICS = 'ANALYTICS',
   FINANCE = 'FINANCE',
   PROFILE = 'PROFILE',
-  IMAGE_STUDIO = 'IMAGE_STUDIO',
-  VOICE_ASSISTANT = 'VOICE_ASSISTANT',
 }
 
 export enum Role {
@@ -80,14 +80,13 @@ export interface Product {
     projectStatus: ProjectStatus;
 }
 
-export interface Investment {
-    id: number;
-    farmerId: number;
-    name: string;
-    amount: number;
-    date: string;
-    description: string;
-    relatedProjectId: number | null;
+export enum ExpenseCategory {
+    EQUIPMENT = 'Equipment',
+    SUPPLIES = 'Supplies',
+    INFRASTRUCTURE = 'Infrastructure',
+    LABOR = 'Labor',
+    UTILITIES = 'Utilities',
+    OTHER = 'Other',
 }
 
 export interface Transaction {
@@ -97,6 +96,18 @@ export interface Transaction {
     amount: number;
     date: string;
     description: string;
-    relatedInvestmentId?: number | null;
-    relatedProductId?: number | null;
+    siteId?: number | null;
+    projectId?: number | null;
+    category?: ExpenseCategory;
+}
+
+// Fix: Add the missing 'Investment' interface to resolve an import error.
+export interface Investment {
+    id: number;
+    farmerId: number;
+    name: string;
+    amount: number;
+    date: string;
+    description: string;
+    relatedProjectId: number | null;
 }

@@ -1,7 +1,5 @@
 {
   "name": "Andd Baay: Digital Agricultural Marketplace",
   "description": "A modern, responsive web application that connects farmers and sellers. Farmers can manage their farm sites, projects, and product listings. Sellers can browse a comprehensive marketplace with advanced filtering. The platform also includes an analytics dashboard with AI-powered insights from Gemini.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Role } from '../types';
-import { LayoutDashboard, Store, BarChart2, Landmark, User as UserIcon, Image as ImageIcon, Mic, Building } from 'lucide-react';
+import { LayoutDashboard, Store, BarChart2, Landmark, User as UserIcon, Building } from 'lucide-react';
 import { t, Language } from '../utils/i18n';
 
 interface SidebarProps {
@@ -36,8 +36,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole, t, la
         { view: View.ANALYTICS, label: t('navAnalytics', lang), icon: BarChart2, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
         { view: View.FINANCE, label: t('navFinance', lang), icon: Landmark, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
         { view: View.PROFILE, label: t('navProfile', lang), icon: UserIcon, roles: [Role.FARMER, Role.BOTH] },
-        { view: View.IMAGE_STUDIO, label: t('navImageStudio', lang), icon: ImageIcon, roles: [Role.FARMER, Role.BOTH] },
-        { view: View.VOICE_ASSISTANT, label: t('navVoiceAssistant', lang), icon: Mic, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
     ];
 
     return (
