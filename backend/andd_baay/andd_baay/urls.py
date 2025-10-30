@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 from sites.views import SiteViewSet
 from projects.views import ProjectViewSet
@@ -15,6 +16,7 @@ router.register(r'products', ProductViewSet, basename='product')
 router.register(r'finance/transactions', TransactionViewSet, basename='transaction')
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='/api/', permanent=False)),
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/analytics/', include('analytics.urls')),
