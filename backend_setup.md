@@ -356,6 +356,23 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.type.capitalize()} of {self.amount} for {self.user.email}"
+
+class Investment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='investments')
+    name = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    date = models.DateField()
+    description = models.TextField(blank=True)
+    related_project = models.ForeignKey(
+        Project,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='investments'
+    )
+
+    def __str__(self):
+        return f"Investment: {self.name} for {self.user.email}"
 ```
 
 ### 5.6 App Configurations
@@ -423,7 +440,7 @@ from rest_framework import permissions
 
 class IsOwner(permissions.BasePermission):
     """
-    Custom permission to only allow owners of a transaction to view/edit it.
+    Custom permission to only allow owners of a financial object (Transaction, Investment) to view/edit it.
     """
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
@@ -643,19 +660,25 @@ class ProductViewSet(viewsets.ModelViewSet):
 **File: `andd_baay/finance/serializers.py`**
 ```python
 from rest_framework import serializers
-from .models import Transaction
+from .models import Transaction, Investment
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'user', 'type', 'amount', 'date', 'description', 'site', 'project', 'category']
         read_only_fields = ('user',)
+
+class InvestmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Investment
+        fields = ['id', 'user', 'name', 'amount', 'date', 'description', 'related_project']
+        read_only_fields = ('user',)
 ```
 **File: `andd_baay/finance/views.py`**
 ```python
 from rest_framework import viewsets
-from .models import Transaction
-from .serializers import TransactionSerializer
+from .models import Transaction, Investment
+from .serializers import TransactionSerializer, InvestmentSerializer
 from .permissions import IsOwner
 
 class TransactionViewSet(viewsets.ModelViewSet):
@@ -664,6 +687,16 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class InvestmentViewSet(viewsets.ModelViewSet):
+    serializer_class = InvestmentSerializer
+    permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        return Investment.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -756,13 +789,14 @@ from rest_framework.routers import DefaultRouter
 from sites.views import SiteViewSet
 from projects.views import ProjectViewSet
 from market.views import ProductViewSet
-from finance.views import TransactionViewSet
+from finance.views import TransactionViewSet, InvestmentViewSet
 
 router = DefaultRouter()
 router.register(r'sites', SiteViewSet, basename='site')
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'products', ProductViewSet, basename='product')
 router.register(r'finance/transactions', TransactionViewSet, basename='transaction')
+router.register(r'finance/investments', InvestmentViewSet, basename='investment')
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/api/', permanent=False)),
@@ -794,10 +828,11 @@ from users.models import User
 from sites.models import Site
 from projects.models import Project
 from market.models import Product
-from finance.models import Transaction
+from finance.models import Transaction, Investment
 
 def seed_data():
     # Clear existing data
+    Investment.objects.all().delete()
     Transaction.objects.all().delete()
     Product.objects.all().delete()
     Project.objects.all().delete()
@@ -842,6 +877,25 @@ def seed_data():
 
     Transaction.objects.create(user=u2, type='expense', amount=750, date=date(2024, 7, 11), description='Purchase of 500kg Organic Kent Mangoes', category='Supplies')
     Transaction.objects.create(user=u2, type='expense', amount=400, date=date(2024, 6, 26), description='Purchase of 200kg Greenhouse Tomatoes', category='Supplies')
+    
+    # Create Investments
+    print("Seeding Investments...")
+    Investment.objects.create(
+        user=u1,
+        name="New Irrigation Pump",
+        amount=3500,
+        date=date(2024, 2, 10),
+        description="Investment in a more efficient water pump for River Field.",
+        related_project=p2
+    )
+    Investment.objects.create(
+        user=u3,
+        name="Solar Panel Installation",
+        amount=7000,
+        date=date(2024, 1, 5),
+        description="Solar panels to power the greenhouse at Koulikoro Oasis.",
+        related_project=p3
+    )
 
     print("Data seeding complete.")
 
@@ -888,4 +942,5 @@ Your Django backend is now running at `http://127.0.0.1:8000/`.
 - **Projects:** `GET/POST/PUT/DELETE /api/projects/`
 - **Products:** `GET/POST/PUT/DELETE /api/products/`
 - **Transactions:** `GET/POST/PUT/DELETE /api/finance/transactions/`
+- **Investments:** `GET/POST/PUT/DELETE /api/finance/investments/`
 - **Analytics Summary:** `GET /api/analytics/summary/`
