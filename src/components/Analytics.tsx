@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, ProjectStatus } from '../types';
 import { getMarketInsights } from '../services/geminiService';
-// Fix: Update t function prop and usage to align with App.tsx
 import { Language } from '../utils/i18n';
 import { MOCK_PROJECTS, MOCK_PRODUCTS } from '../constants';
 import { formatCurrency } from '../utils/formatters';
@@ -33,7 +32,7 @@ const PIE_CHART_COLORS = {
     [ProjectStatus.COMPLETED]: '#48BB78',
 };
 
-const Analytics: React.FC<AnalyticsProps> = ({ user, t, lang, isDarkMode }) => {
+const Analytics: React.FC<AnalyticsProps> = ({ user, t, isDarkMode }) => {
     const [query, setQuery] = useState('Mango price trends in West Africa');
     const [insights, setInsights] = useState('');
     const [loadingInsights, setLoadingInsights] = useState(false);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -8,9 +7,11 @@ import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import Finance from './components/Finance';
 import AuthModal from './components/AuthModal';
-import SiteManagement from './components/Banner';
+import SiteManagement from './components/SiteManagement';
 import SiteDetail from './components/SiteDetail';
 import CartView from './components/CartView';
+import ImageEditor from './components/ImageEditor';
+import VoiceAssistant from './components/VoiceAssistant';
 import { View, User, CartItem } from './types';
 import * as authService from './services/authService';
 import ChatBot from './components/ChatBot';
@@ -165,6 +166,10 @@ const App: React.FC = () => {
         return <Finance {...commonProps} isDarkMode={isDarkMode} />;
       case View.PROFILE:
         return <Profile {...commonProps} onProfileUpdate={handleProfileUpdate} />;
+      case View.IMAGE_STUDIO:
+        return <ImageEditor {...commonProps} />;
+      case View.VOICE_ASSISTANT:
+        return <VoiceAssistant {...commonProps} />;
       default:
         return <Dashboard {...commonProps} isHarvestMode={isHarvestMode} isDarkMode={isDarkMode} />;
     }
@@ -175,12 +180,13 @@ const App: React.FC = () => {
   }
 
   if (!user) {
+    // Fix: Pass the 'lang' prop to AuthModal as it is required by AuthModalProps.
     return <AuthModal show={isAuthModalOpen} onLoginSuccess={handleLoginSuccess} onClose={() => setIsAuthModalOpen(false)} t={t} lang={language} />;
   }
 
   return (
     <div className={`flex h-screen text-gray-800 dark:text-gray-200 font-sans transition-colors duration-500 ${isHarvestMode ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-gray-50 dark:bg-gray-900'}`}>
-      <Sidebar currentView={view} setView={setView} userRole={user.role} t={t} lang={language} />
+      <Sidebar currentView={view} setView={setView} userRole={user.role} t={t} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
             user={user} 
@@ -201,6 +207,7 @@ const App: React.FC = () => {
           </div>
         </main>
       </div>
+      {/* Fix: Pass the 'lang' prop to ChatBot as it is required by ChatBotProps. */}
       <ChatBot t={t} lang={language} />
     </div>
   );

@@ -1,17 +1,15 @@
 import React from 'react';
 import { View, Role } from '../types';
-import { LayoutDashboard, Store, BarChart2, Landmark, User as UserIcon, Building } from 'lucide-react';
-import { Language } from '../utils/i18n';
+import { LayoutDashboard, Store, BarChart2, Landmark, User as UserIcon, Building, Image, Mic } from 'lucide-react';
 
 interface SidebarProps {
     currentView: View;
     setView: (view: View) => void;
     userRole: Role;
     t: (key: any, options?: any) => string;
-    lang: Language;
 }
 
-const NavItem = ({ icon: Icon, label, isActive, onClick }: any) => (
+const NavItem = ({ icon: Icon, label, isActive, onClick }: { icon: React.ElementType, label: string, isActive: boolean, onClick: () => void }) => (
     <button
         onClick={onClick}
         className={`flex items-center w-full px-4 py-3 text-left transition-colors duration-200 rounded-lg ${
@@ -19,19 +17,22 @@ const NavItem = ({ icon: Icon, label, isActive, onClick }: any) => (
         ? 'bg-green-600 text-white shadow-md'
         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
     }`}
+    aria-current={isActive ? 'page' : undefined}
   >
     <Icon className="w-5 h-5 mr-3" />
     <span className="font-medium">{label}</span>
   </button>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole, t, lang }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, userRole, t }) => {
     const navItems = [
         { view: View.DASHBOARD, label: t('navDashboard'), icon: LayoutDashboard, roles: [Role.FARMER, Role.BOTH] },
         { view: View.SITE_MANAGEMENT, label: t('navSiteManagement'), icon: Building, roles: [Role.FARMER, Role.BOTH] },
         { view: View.MARKETPLACE, label: t('navMarketplace'), icon: Store, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
         { view: View.ANALYTICS, label: t('navAnalytics'), icon: BarChart2, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
         { view: View.FINANCE, label: t('navFinance'), icon: Landmark, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
+        { view: View.IMAGE_STUDIO, label: t('navImageStudio'), icon: Image, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
+        { view: View.VOICE_ASSISTANT, label: t('navVoiceAssistant'), icon: Mic, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
         { view: View.PROFILE, label: t('navProfile'), icon: UserIcon, roles: [Role.FARMER, Role.SELLER, Role.BOTH] },
     ];
 
