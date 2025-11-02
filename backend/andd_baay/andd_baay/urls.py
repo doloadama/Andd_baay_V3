@@ -8,6 +8,7 @@ from sites.views import SiteViewSet
 from projects.views import ProjectViewSet
 from market.views import ProductViewSet
 from finance.views import TransactionViewSet, InvestmentViewSet
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
 router.register(r'sites', SiteViewSet, basename='site')
@@ -22,6 +23,11 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/analytics/', include('analytics.urls')),
     path('api/', include(router.urls)),
+    # enable DRF browsable API login/logout (for SessionAuthentication)
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    # JWT endpoints (if you prefer token auth)
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 if settings.DEBUG:

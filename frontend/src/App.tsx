@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -15,6 +14,13 @@ import { View, User, CartItem } from './types';
 import * as authService from './services/authService';
 import ChatBot from './components/ChatBot';
 import { t as translate, Language } from './utils/i18n';
+
+export const API_URL = "http://localhost:8000/api";
+
+export async function fetchProjects() {
+  const res = await fetch(`${API_URL}/projects/`);
+  return res.json();
+}
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>(View.DASHBOARD);

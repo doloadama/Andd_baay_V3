@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo } from 'react';
-import { User, Role, Project, Product, Transaction, ProjectStatus } from '../types';
+import { User, Role, ProjectStatus } from '../types';
 import * as authService from '../services/authService';
 import { MOCK_SITES, MOCK_PROJECTS, MOCK_PRODUCTS, MOCK_TRANSACTIONS } from '../constants';
 import { Language } from '../utils/i18n';
-import { User as UserIcon, MapPin, Phone, Edit, Briefcase, Sprout, Package, List, FileText, PlusCircle } from 'lucide-react';
+import { User as UserIcon, MapPin, Phone, Edit, Briefcase, Sprout, Package, FileText, PlusCircle } from 'lucide-react';
 import ProfileEditModal from './ProfileEditModal';
 
 interface ProfileProps {
@@ -16,7 +15,7 @@ interface ProfileProps {
 }
 
 // Fix: Update function signature and calls to `t` to match the function passed from App.tsx.
-const formatDateRelative = (dateString: string, t: (key: any, options?: any) => string, lang: Language) => {
+const formatDateRelative = (dateString: string, t: (key: any, options?: any) => string) => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -150,7 +149,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onProfileUpdate, t, lang }) => 
                                     </div>
                                     <div>
                                         <p className="text-sm text-gray-800 dark:text-gray-100">{activity.text}</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDateRelative(activity.date, t, lang)}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDateRelative(activity.date, t)}</p>
                                     </div>
                                 </li>
                             ))}

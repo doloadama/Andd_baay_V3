@@ -18,7 +18,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
+    'corsheaders',  # Only once!
 
     # Local apps
     'users.apps.UsersConfig',
@@ -32,13 +32,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # CORS Middleware
+    'corsheaders.middleware.CorsMiddleware',   # must be first
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+] + ['corsheaders.middleware.CorsMiddleware']
 
 ROOT_URLCONF = 'andd_baay.urls'
 
@@ -93,10 +93,13 @@ AUTH_USER_MODEL = 'users.User'
 # --- Django REST Framework ---
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # dev-friendly: allow read access without login; require auth for writes
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
@@ -109,6 +112,14 @@ SIMPLE_JWT = {
 
 # --- CORS Settings ---
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Add your frontend URL here
-    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
+
+# If using cookies/session auth from frontend
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+]
+
+# If you want credentials (cookies) to be accepted
+CORS_ALLOW_CREDENTIALS = True

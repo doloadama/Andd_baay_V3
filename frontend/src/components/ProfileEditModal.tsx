@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { MALI_REGIONS } from '../constants';
-import { t, Language } from '../utils/i18n';
+import { Language } from '../utils/i18n';
 
 interface ProfileEditModalProps {
     isOpen: boolean;
