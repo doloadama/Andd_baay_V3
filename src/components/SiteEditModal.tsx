@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Site } from '../types';
 import { MALI_REGIONS } from '../constants';
+import { Language } from '../utils/i18n';
 
 interface SiteEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (siteData: Omit<Site, 'id' | 'farmerId'>, id: number | null) => void;
     site: Site | null;
-    t: (key: any, options?: any) => string;
+    t: (key: any, lang: Language) => string;
+    lang: Language;
 }
 
-const SiteEditModal: React.FC<SiteEditModalProps> = ({ isOpen, onClose, onSave, site, t }) => {
+const SiteEditModal: React.FC<SiteEditModalProps> = ({ isOpen, onClose, onSave, site, t, lang }) => {
     const [name, setName] = useState('');
     const [location, setLocation] = useState(MALI_REGIONS[0]);
 
@@ -35,11 +37,11 @@ const SiteEditModal: React.FC<SiteEditModalProps> = ({ isOpen, onClose, onSave, 
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-2xl w-full max-w-md">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
-                    {site ? t('editSite') : t('addNewSite')}
+                    {site ? t('editSite', lang) : t('addNewSite', lang)}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label htmlFor="siteName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('siteName')}</label>
+                        <label htmlFor="siteName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('siteName', lang)}</label>
                         <input
                             id="siteName"
                             type="text"
@@ -50,7 +52,7 @@ const SiteEditModal: React.FC<SiteEditModalProps> = ({ isOpen, onClose, onSave, 
                         />
                     </div>
                     <div>
-                        <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('location')}</label>
+                        <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('location', lang)}</label>
                         <select
                             id="location"
                             value={location}
@@ -62,8 +64,8 @@ const SiteEditModal: React.FC<SiteEditModalProps> = ({ isOpen, onClose, onSave, 
                         </select>
                     </div>
                     <div className="flex justify-end space-x-4 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">{t('cancel')}</button>
-                        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">{t('save')}</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">{t('cancel', lang)}</button>
+                        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">{t('save', lang)}</button>
                     </div>
                 </form>
             </div>

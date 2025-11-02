@@ -55,8 +55,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ show, onClose, onLoginSuccess, t,
         }
         setError('');
         setLoading(true);
-        const { name, email, phone, location, role } = regData;
-        const success = await authService.register({ name, email, phone, location, role });
+        
+        const success = await authService.register(regData);
+
         if (success) {
              const user = await authService.getProfile();
              if (user) {
