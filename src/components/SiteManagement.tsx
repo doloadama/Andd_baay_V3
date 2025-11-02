@@ -1,19 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Site, ProjectStatus } from '../types';
-import { MOCK_SITES, MOCK_PROJECTS } from '../constants';
+import { MOCK_PROJECTS } from '../constants'; // Projects still mock for stats, could be fetched too
+import { Language } from '../utils/i18n';
 import SiteEditModal from './SiteEditModal';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader } from 'lucide-react';
+import * as siteService from '../services/siteService';
 
 interface SiteManagementProps {
     user: User;
     t: (key: any, options?: any) => string;
+    lang: Language;
     onViewDetails: (siteId: number) => void;
 }
 
-const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, onViewDetails }) => {
-    const [sites, setSites] = useState<Site[]>(MOCK_SITES.filter(s => s.farmerId === user.id));
+const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, lang, onViewDetails }) => {
+    const [sites, setSites] = useState<Site[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [siteToEdit, setSiteToEdit] = useState<Site | null>(null);
+
+    useEffect(() => {
+        const fetchSites = async () => {
+            try {
+                const userSites = await siteService.getSites();
+                setSites(userSites);
+            } catch (err) {
+                setError("Failed to load sites.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSites();
+    }, []);
 
     const handleOpenModal = (site: Site | null = null) => {
         setSiteToEdit(site);
@@ -25,36 +44,33 @@ const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, onViewDetails 
         setSiteToEdit(null);
     };
 
-    const handleSaveSite = (siteData: Omit<Site, 'id' | 'farmerId'>, id: number | null) => {
-        if (id) { // Editing
-            const updatedSites = sites.map(s => s.id === id ? { ...s, ...siteData, id, farmerId: user.id } : s);
-            setSites(updatedSites);
-            const mockIndex = MOCK_SITES.findIndex(s => s.id === id);
-            if (mockIndex !== -1) {
-                MOCK_SITES[mockIndex] = { ...MOCK_SITES[mockIndex], ...siteData };
+    const handleSaveSite = async (siteData: Omit<Site, 'id' | 'farmerId'>, id: number | null) => {
+        try {
+            if (id) { // Editing
+                const updatedSite = await siteService.updateSite(id, siteData);
+                setSites(sites.map(s => (s.id === id ? updatedSite : s)));
+            } else { // Adding
+                const newSite = await siteService.createSite(siteData);
+                setSites([newSite, ...sites]);
             }
-        } else { // Adding
-            const newSite: Site = {
-                id: Math.max(...MOCK_SITES.map(s => s.id), 0) + 1,
-                farmerId: user.id,
-                ...siteData
-            };
-            setSites([...sites, newSite]);
-            MOCK_SITES.push(newSite);
+            handleCloseModal();
+        } catch (err) {
+            alert('Failed to save site.');
         }
-        handleCloseModal();
     };
     
-    const handleDeleteSite = (siteId: number) => {
+    const handleDeleteSite = async (siteId: number) => {
         if (window.confirm(t('confirmDeleteSite'))) {
-            setSites(sites.filter(s => s.id !== siteId));
-            const mockIndex = MOCK_SITES.findIndex(s => s.id === siteId);
-            if (mockIndex !== -1) {
-                MOCK_SITES.splice(mockIndex, 1);
+            try {
+                await siteService.deleteSite(siteId);
+                setSites(sites.filter(s => s.id !== siteId));
+            } catch (err) {
+                alert('Failed to delete site.');
             }
         }
     };
     
+    // This part still uses mock data, in a full implementation this would also be fetched.
     const getSiteStats = (siteId: number) => {
         const projectsForSite = MOCK_PROJECTS.filter(p => p.siteId === siteId);
         const activeProjects = projectsForSite.filter(p => p.status !== ProjectStatus.COMPLETED);
@@ -78,33 +94,40 @@ const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, onViewDetails 
                 </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sites.map(site => {
-                    const stats = getSiteStats(site.id);
-                    return (
-                        <div key={site.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                            <div className="p-6 flex-grow">
-                                <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">{site.name}</h4>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{site.location}</p>
-                                <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                                    <p><span className="font-semibold">{t('activeProjectsCount')}:</span> {stats.activeProjectsCount}</p>
-                                    <p><span className="font-semibold">{t('totalExpectedYield')}:</span> {stats.totalYield.toLocaleString()} kg</p>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-gray-700 p-3 flex justify-end items-center space-x-2 rounded-b-lg">
-                                <button onClick={() => onViewDetails(site.id)} className="text-sm px-4 py-2 font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('viewDetails')}</button>
-                                <button onClick={() => handleOpenModal(site)} className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"><Edit size={18} /></button>
-                                <button onClick={() => handleDeleteSite(site.id)} className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"><Trash2 size={18} /></button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+            {loading && <div className="flex justify-center items-center p-8"><Loader className="animate-spin" /></div>}
+            {error && <div className="text-center text-red-500 bg-red-100 dark:bg-red-900/50 p-4 rounded-md">{error}</div>}
 
-            {sites.length === 0 && (
-                <div className="text-center bg-white dark:bg-gray-800 p-10 rounded-lg shadow-md">
-                     <p className="text-gray-500 dark:text-gray-400">{t('noSitesFound')}</p>
-                </div>
+            {!loading && !error && (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {sites.map(site => {
+                            const stats = getSiteStats(site.id);
+                            return (
+                                <div key={site.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                                    <div className="p-6 flex-grow">
+                                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">{site.name}</h4>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{site.location}</p>
+                                        <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                                            <p><span className="font-semibold">{t('activeProjectsCount')}:</span> {stats.activeProjectsCount}</p>
+                                            <p><span className="font-semibold">{t('totalExpectedYield')}:</span> {stats.totalYield.toLocaleString()} kg</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 flex justify-end items-center space-x-2 rounded-b-lg">
+                                        <button onClick={() => onViewDetails(site.id)} className="text-sm px-4 py-2 font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{t('viewDetails')}</button>
+                                        <button onClick={() => handleOpenModal(site)} className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"><Edit size={18} /></button>
+                                        <button onClick={() => handleDeleteSite(site.id)} className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"><Trash2 size={18} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {sites.length === 0 && (
+                        <div className="text-center bg-white dark:bg-gray-800 p-10 rounded-lg shadow-md">
+                            <p className="text-gray-500 dark:text-gray-400">{t('noSitesFound')}</p>
+                        </div>
+                    )}
+                </>
             )}
 
             {isModalOpen && (
@@ -114,6 +137,7 @@ const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, onViewDetails 
                     onSave={handleSaveSite}
                     site={siteToEdit}
                     t={t}
+                    lang={lang}
                 />
             )}
         </div>

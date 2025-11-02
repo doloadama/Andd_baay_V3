@@ -180,7 +180,6 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    // Fix: Pass the 'lang' prop to AuthModal as it is required by AuthModalProps.
     return <AuthModal show={isAuthModalOpen} onLoginSuccess={handleLoginSuccess} onClose={() => setIsAuthModalOpen(false)} t={t} lang={language} />;
   }
 
@@ -207,7 +206,6 @@ const App: React.FC = () => {
           </div>
         </main>
       </div>
-      {/* Fix: Pass the 'lang' prop to ChatBot as it is required by ChatBotProps. */}
       <ChatBot t={t} lang={language} />
     </div>
   );
