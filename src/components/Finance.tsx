@@ -351,6 +351,9 @@ const Finance: React.FC<FinanceProps> = ({ user, t, lang, isDarkMode, transactio
                     userId={user.id}
                     t={t}
                     lang={lang}
+                    // Fix: Pass missing userSites and projects props to TransactionModal
+                    userSites={userSites}
+                    projects={projects}
                 />
             )}
             {isReportModalOpen && (

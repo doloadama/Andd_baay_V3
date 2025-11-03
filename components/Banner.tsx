@@ -3,7 +3,8 @@ import { User, Site, Project, ProjectStatus } from '../types';
 import { t, Language } from '../utils/i18n';
 import SiteEditModal from './AddSiteForm';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
-import * as siteService from '../services/siteService';
+// Fix: Removed service import and added mock data imports to make component self-contained.
+import { MOCK_SITES, MOCK_PROJECTS } from '../constants';
 
 
 interface SiteManagementProps {
@@ -11,12 +12,17 @@ interface SiteManagementProps {
     t: (key: any, lang: Language, options?: any) => string;
     lang: Language;
     onViewDetails: (siteId: number) => void;
-    sites: Site[];
-    setSites: React.Dispatch<React.SetStateAction<Site[]>>;
-    projects: Project[];
+    // Fix: Removed props that were causing errors in App.tsx as this component will manage its own state.
+    // sites: Site[];
+    // setSites: React.Dispatch<React.SetStateAction<Site[]>>;
+    // projects: Project[];
 }
 
-const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, lang, onViewDetails, sites, setSites, projects }) => {
+const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, lang, onViewDetails }) => {
+    // Fix: Added local state for sites and projects, initialized from mock data.
+    const [sites, setSites] = useState<Site[]>(MOCK_SITES.filter(s => s.farmerId === user.id));
+    const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [siteToEdit, setSiteToEdit] = useState<Site | null>(null);
 
@@ -30,21 +36,33 @@ const SiteManagement: React.FC<SiteManagementProps> = ({ user, t, lang, onViewDe
         setSiteToEdit(null);
     };
 
-    const handleSaveSite = async (siteData: Omit<Site, 'id' | 'farmerId'>, id: number | null) => {
+    const handleSaveSite = (siteData: Omit<Site, 'id' | 'farmerId'>, id: number | null) => {
         if (id) { // Editing
-            const updatedSite = await siteService.updateSite(id, siteData);
+            const updatedSite = { ...sites.find(s => s.id === id)!, ...siteData, id, farmerId: user.id };
             setSites(sites.map(s => s.id === id ? updatedSite : s));
+            const mockIndex = MOCK_SITES.findIndex(s => s.id === id);
+            if (mockIndex > -1) {
+                MOCK_SITES[mockIndex] = updatedSite;
+            }
         } else { // Adding
-            const newSite = await siteService.createSite(siteData);
+            const newSite: Site = {
+                id: Math.max(...MOCK_SITES.map(s => s.id), 0) + 1,
+                farmerId: user.id,
+                ...siteData
+            };
             setSites([newSite, ...sites]);
+            MOCK_SITES.push(newSite);
         }
         handleCloseModal();
     };
     
-    const handleDeleteSite = async (siteId: number) => {
+    const handleDeleteSite = (siteId: number) => {
         if (window.confirm(t('confirmDeleteSite', lang))) {
-            await siteService.deleteSite(siteId);
             setSites(sites.filter(s => s.id !== siteId));
+            const mockIndex = MOCK_SITES.findIndex(s => s.id === siteId);
+            if (mockIndex > -1) {
+                MOCK_SITES.splice(mockIndex, 1);
+            }
         }
     };
     
